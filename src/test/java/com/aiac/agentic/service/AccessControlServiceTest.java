@@ -1,11 +1,14 @@
 package com.aiac.agentic.service;
 
+import com.aiac.agentic.config.PolicyProperties;
 import com.aiac.agentic.exception.InvalidAccessRequestException;
 import com.aiac.agentic.model.AccessRequest;
 import com.aiac.agentic.model.AccessResponse;
 import com.aiac.agentic.model.Decision;
 import com.aiac.agentic.repository.InMemoryAccessLogRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,10 +16,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class AccessControlServiceTest {
 
     private final AuditLogService auditLogService = new AuditLogService(new InMemoryAccessLogRepository());
-    private final AccessControlService accessControlService = new AccessControlService(new LocalPolicyDecisionService(), auditLogService);
 
     @Test
-    void shouldReturnDecisionAndWriteAuditLog() {
+    void shouldReturnDecisionAndWriteAuditLogWithLocalProvider() {
+        AccessControlService accessControlService = new AccessControlService(
+                new LocalPolicyDecisionService(),
+                opaServiceWithMock(true),
+                localProperties(),
+                auditLogService
+        );
+
         AccessResponse response = accessControlService.checkAccess(validRequest());
 
         assertEquals(Decision.ALLOW, response.getDecision());
@@ -24,9 +33,46 @@ class AccessControlServiceTest {
     }
 
     @Test
+    void shouldUseOpaProviderWhenConfigured() {
+        AccessControlService accessControlService = new AccessControlService(
+                new LocalPolicyDecisionService(),
+                opaServiceWithMock(true),
+                opaProperties(true),
+                auditLogService
+        );
+
+        AccessResponse response = accessControlService.checkAccess(validRequest());
+
+        assertEquals(Decision.ALLOW, response.getDecision());
+        assertEquals("Mock OPA: analyst may read financial_report.", response.getReason());
+    }
+
+    @Test
+    void shouldFallbackToLocalWhenOpaFails() {
+        AccessControlService accessControlService = new AccessControlService(
+                new LocalPolicyDecisionService(),
+                opaServiceWithMock(false),
+                opaProperties(false),
+                auditLogService
+        );
+
+        AccessResponse response = accessControlService.checkAccess(validRequest());
+
+        assertEquals(Decision.ALLOW, response.getDecision());
+        assertEquals("Analyst role may read financial_report.", response.getReason());
+    }
+
+    @Test
     void shouldRejectUnsupportedEnvironment() {
         AccessRequest request = validRequest();
         request.setEnvironment("staging");
+
+        AccessControlService accessControlService = new AccessControlService(
+                new LocalPolicyDecisionService(),
+                opaServiceWithMock(true),
+                localProperties(),
+                auditLogService
+        );
 
         assertThrows(InvalidAccessRequestException.class, () -> accessControlService.checkAccess(request));
     }
@@ -36,7 +82,36 @@ class AccessControlServiceTest {
         AccessRequest request = validRequest();
         request.setSensitivityLevel("critical");
 
+        AccessControlService accessControlService = new AccessControlService(
+                new LocalPolicyDecisionService(),
+                opaServiceWithMock(true),
+                localProperties(),
+                auditLogService
+        );
+
         assertThrows(InvalidAccessRequestException.class, () -> accessControlService.checkAccess(request));
+    }
+
+    private OpaPolicyDecisionService opaServiceWithMock(boolean mockEnabled) {
+        PolicyProperties properties = new PolicyProperties();
+        properties.setProvider("opa");
+        properties.getOpa().setMockEnabled(mockEnabled);
+        properties.getOpa().setUrl("http://localhost:8181/v1/data/aiac/access/allow");
+
+        return new OpaPolicyDecisionService(new RestTemplateBuilder(), new ObjectMapper(), properties);
+    }
+
+    private PolicyProperties localProperties() {
+        PolicyProperties properties = new PolicyProperties();
+        properties.setProvider("local");
+        return properties;
+    }
+
+    private PolicyProperties opaProperties(boolean mockEnabled) {
+        PolicyProperties properties = new PolicyProperties();
+        properties.setProvider("opa");
+        properties.getOpa().setMockEnabled(mockEnabled);
+        return properties;
     }
 
     private AccessRequest validRequest() {

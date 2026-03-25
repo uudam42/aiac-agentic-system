@@ -42,7 +42,7 @@ The implementation intentionally avoids early complexity such as databases, auth
 
 Current architecture:
 
-`Client -> Controller -> AccessControlService -> PolicyDecisionService -> LocalPolicyDecisionService -> Audit Log Repository`
+`Client -> Controller -> AccessControlService -> (LocalPolicyDecisionService | OpaPolicyDecisionService) -> AuditLogService -> Audit Log Repository`
 
 Planned evolution:
 
@@ -140,15 +140,39 @@ Response example:
 }
 ```
 
-## Local Mock Policy Rules
+## Policy Provider Structure
 
-The Phase 1 rules are intentionally simple and live behind a policy service abstraction:
+The backend now supports two policy provider paths:
+
+- `local` -> uses `LocalPolicyDecisionService`
+- `opa` -> uses `OpaPolicyDecisionService`
+
+The currently active provider is selected through configuration:
+
+```properties
+policy.provider=local
+policy.opa.url=http://localhost:8181/v1/data/aiac/access/allow
+policy.opa.mock-enabled=true
+```
+
+### Local policy rules
+
+The local rules remain intentionally simple:
 
 - `admin` -> may access any resource/action -> **ALLOW**
 - `analyst` + `financial_report` + `read` -> **ALLOW**
 - all other cases -> **DENY**
 
-This is implemented in `LocalPolicyDecisionService`, which conforms to a `PolicyDecisionService` interface so the backend can later swap in OPA or another external policy engine without changing controller code.
+### OPA preparation
+
+`OpaPolicyDecisionService` now:
+
+- builds an OPA-style JSON payload from `AccessRequest`
+- prepares an HTTP POST call to the configured OPA endpoint
+- returns a mocked OPA decision when `policy.opa.mock-enabled=true`
+- falls back to local policy when OPA evaluation fails
+
+This keeps the system runnable even when no OPA server is present.
 
 ## Run the Project
 
@@ -249,10 +273,12 @@ curl http://localhost:8080/api/logs
 - improved response contracts
 
 ### Phase 3
-- integrate OPA/Rego
-- translate Java request context to OPA input
+- switch `policy.provider=opa`
+- point `policy.opa.url` to a live OPA endpoint
+- replace mocked OPA behavior with real HTTP-based policy evaluation
+- send access context as OPA `input`
 - parse OPA decisions into backend responses
-- fallback handling when OPA is unavailable
+- keep fallback handling when OPA is unavailable
 
 ### Phase 4
 - persist audit logs with H2 or PostgreSQL
