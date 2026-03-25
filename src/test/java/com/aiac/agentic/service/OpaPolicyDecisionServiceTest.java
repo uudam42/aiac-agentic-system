@@ -2,20 +2,19 @@ package com.aiac.agentic.service;
 
 import com.aiac.agentic.config.PolicyProperties;
 import com.aiac.agentic.model.AccessRequest;
-import com.aiac.agentic.model.Decision;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OpaPolicyDecisionServiceTest {
 
     @Test
-    void shouldReturnMockedAllowDecisionWithoutRunningOpa() {
+    void shouldThrowWhenOpaIsUnavailable() {
         PolicyProperties properties = new PolicyProperties();
         properties.setProvider("opa");
-        properties.getOpa().setMockEnabled(true);
+        properties.getOpa().setUrl("http://localhost:8181/v1/data/aiac/allow");
 
         OpaPolicyDecisionService service = new OpaPolicyDecisionService(
                 new RestTemplateBuilder(),
@@ -23,7 +22,7 @@ class OpaPolicyDecisionServiceTest {
                 properties
         );
 
-        assertEquals(Decision.ALLOW, service.evaluate(validRequest()).getDecision());
+        assertThrows(IllegalStateException.class, () -> service.evaluate(validRequest()));
     }
 
     private AccessRequest validRequest() {

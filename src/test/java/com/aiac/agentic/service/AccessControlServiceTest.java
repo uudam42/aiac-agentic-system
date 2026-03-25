@@ -21,7 +21,7 @@ class AccessControlServiceTest {
     void shouldReturnDecisionAndWriteAuditLogWithLocalProvider() {
         AccessControlService accessControlService = new AccessControlService(
                 new LocalPolicyDecisionService(),
-                opaServiceWithMock(true),
+                opaService(),
                 localProperties(),
                 auditLogService
         );
@@ -33,26 +33,11 @@ class AccessControlServiceTest {
     }
 
     @Test
-    void shouldUseOpaProviderWhenConfigured() {
-        AccessControlService accessControlService = new AccessControlService(
-                new LocalPolicyDecisionService(),
-                opaServiceWithMock(true),
-                opaProperties(true),
-                auditLogService
-        );
-
-        AccessResponse response = accessControlService.checkAccess(validRequest());
-
-        assertEquals(Decision.ALLOW, response.getDecision());
-        assertEquals("Mock OPA: analyst may read financial_report.", response.getReason());
-    }
-
-    @Test
     void shouldFallbackToLocalWhenOpaFails() {
         AccessControlService accessControlService = new AccessControlService(
                 new LocalPolicyDecisionService(),
-                opaServiceWithMock(false),
-                opaProperties(false),
+                opaService(),
+                opaProperties(),
                 auditLogService
         );
 
@@ -69,7 +54,7 @@ class AccessControlServiceTest {
 
         AccessControlService accessControlService = new AccessControlService(
                 new LocalPolicyDecisionService(),
-                opaServiceWithMock(true),
+                opaService(),
                 localProperties(),
                 auditLogService
         );
@@ -84,7 +69,7 @@ class AccessControlServiceTest {
 
         AccessControlService accessControlService = new AccessControlService(
                 new LocalPolicyDecisionService(),
-                opaServiceWithMock(true),
+                opaService(),
                 localProperties(),
                 auditLogService
         );
@@ -92,11 +77,10 @@ class AccessControlServiceTest {
         assertThrows(InvalidAccessRequestException.class, () -> accessControlService.checkAccess(request));
     }
 
-    private OpaPolicyDecisionService opaServiceWithMock(boolean mockEnabled) {
+    private OpaPolicyDecisionService opaService() {
         PolicyProperties properties = new PolicyProperties();
         properties.setProvider("opa");
-        properties.getOpa().setMockEnabled(mockEnabled);
-        properties.getOpa().setUrl("http://localhost:8181/v1/data/aiac/access/allow");
+        properties.getOpa().setUrl("http://localhost:8181/v1/data/aiac/allow");
 
         return new OpaPolicyDecisionService(new RestTemplateBuilder(), new ObjectMapper(), properties);
     }
@@ -107,10 +91,9 @@ class AccessControlServiceTest {
         return properties;
     }
 
-    private PolicyProperties opaProperties(boolean mockEnabled) {
+    private PolicyProperties opaProperties() {
         PolicyProperties properties = new PolicyProperties();
         properties.setProvider("opa");
-        properties.getOpa().setMockEnabled(mockEnabled);
         return properties;
     }
 

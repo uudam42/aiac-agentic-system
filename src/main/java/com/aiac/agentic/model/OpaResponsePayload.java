@@ -2,13 +2,13 @@ package com.aiac.agentic.model;
 
 public class OpaResponsePayload {
 
-    private OpaDecisionResult result;
+    private Boolean result;
 
-    public OpaDecisionResult getResult() {
+    public Boolean getResult() {
         return result;
     }
 
-    public void setResult(OpaDecisionResult result) {
+    public void setResult(Boolean result) {
         this.result = result;
     }
 }

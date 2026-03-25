@@ -2,11 +2,8 @@ package com.aiac.agentic.model;
 
 public class OpaDecisionResult {
 
-    private boolean allow;
-    private String reason;
-
-    public OpaDecisionResult() {
-    }
+    private final boolean allow;
+    private final String reason;
 
     public OpaDecisionResult(boolean allow, String reason) {
         this.allow = allow;
@@ -17,15 +14,7 @@ public class OpaDecisionResult {
         return allow;
     }
 
-    public void setAllow(boolean allow) {
-        this.allow = allow;
-    }
-
     public String getReason() {
         return reason;
-    }
-
-    public void setReason(String reason) {
-        this.reason = reason;
     }
 }

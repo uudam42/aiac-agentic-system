@@ -2,13 +2,13 @@ package com.aiac.agentic.model;
 
 public class OpaRequestPayload {
 
-    private final AccessRequest input;
+    private final OpaInput input;
 
-    public OpaRequestPayload(AccessRequest input) {
+    public OpaRequestPayload(OpaInput input) {
         this.input = input;
     }
 
-    public AccessRequest getInput() {
+    public OpaInput getInput() {
         return input;
     }
 }

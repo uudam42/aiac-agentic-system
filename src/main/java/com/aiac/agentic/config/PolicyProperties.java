@@ -25,8 +25,7 @@ public class PolicyProperties {
     }
 
     public static class Opa {
-        private String url = "http://localhost:8181/v1/data/aiac/access/allow";
-        private boolean mockEnabled = true;
+        private String url = "http://localhost:8181/v1/data/aiac/allow";
 
         public String getUrl() {
             return url;
@@ -34,14 +33,6 @@ public class PolicyProperties {
 
         public void setUrl(String url) {
             this.url = url;
-        }
-
-        public boolean isMockEnabled() {
-            return mockEnabled;
-        }
-
-        public void setMockEnabled(boolean mockEnabled) {
-            this.mockEnabled = mockEnabled;
         }
     }
 }

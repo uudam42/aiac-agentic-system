@@ -12,7 +12,7 @@ The goal is to build a backend system that can evaluate an AI agent's access req
 - allow or deny execution
 - record an audit trail for every decision
 
-This repository currently implements **Phase 2-ready groundwork on top of the Phase 1 Spring Boot MVP**.
+This repository currently implements **a Spring Boot MVP with real OPA integration structure and local fallback**.
 
 ## Current Stage
 
@@ -151,8 +151,7 @@ The currently active provider is selected through configuration:
 
 ```properties
 policy.provider=local
-policy.opa.url=http://localhost:8181/v1/data/aiac/access/allow
-policy.opa.mock-enabled=true
+policy.opa.url=http://localhost:8181/v1/data/aiac/allow
 ```
 
 ### Local policy rules
@@ -163,16 +162,17 @@ The local rules remain intentionally simple:
 - `analyst` + `financial_report` + `read` -> **ALLOW**
 - all other cases -> **DENY**
 
-### OPA preparation
+### Real OPA integration
 
 `OpaPolicyDecisionService` now:
 
-- builds an OPA-style JSON payload from `AccessRequest`
-- prepares an HTTP POST call to the configured OPA endpoint
-- returns a mocked OPA decision when `policy.opa.mock-enabled=true`
-- falls back to local policy when OPA evaluation fails
+- builds an OPA input payload from `AccessRequest`
+- sends a real HTTP `POST` request to the configured OPA endpoint
+- parses the boolean OPA decision from the response body
+- converts that result into `ALLOW` or `DENY`
+- falls back to local policy when OPA is unreachable or returns an invalid response
 
-This keeps the system runnable even when no OPA server is present.
+This keeps the system runnable even when no OPA server is present, while allowing real OPA evaluation whenever OPA is available.
 
 ## Run the Project
 
@@ -249,6 +249,67 @@ curl -X POST http://localhost:8080/api/access/check \
 curl http://localhost:8080/api/logs
 ```
 
+## Run OPA Locally
+
+Sample Rego policy file:
+
+- `policies/aiac.rego`
+
+Start OPA locally from the project root:
+
+```bash
+opa run --server --addr :8181 policies/aiac.rego
+```
+
+Then switch the backend to OPA mode in `src/main/resources/application.properties`:
+
+```properties
+policy.provider=opa
+policy.opa.url=http://localhost:8181/v1/data/aiac/allow
+```
+
+OPA test request directly:
+
+```bash
+curl -X POST http://localhost:8181/v1/data/aiac/allow \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {
+      "agentId": "agent-007",
+      "role": "analyst",
+      "resource": "financial_report",
+      "action": "read",
+      "environment": "dev",
+      "sensitivityLevel": "medium"
+    }
+  }'
+```
+
+Expected OPA response:
+
+```json
+{
+  "result": true
+}
+```
+
+With the backend running in OPA mode, test the full flow:
+
+```bash
+curl -X POST http://localhost:8080/api/access/check \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "req-010",
+    "agentId": "agent-007",
+    "agentType": "assistant",
+    "role": "analyst",
+    "resource": "financial_report",
+    "action": "read",
+    "environment": "dev",
+    "sensitivityLevel": "medium"
+  }'
+```
+
 ## Design Notes
 
 - controllers are thin and only handle HTTP concerns
@@ -273,9 +334,7 @@ curl http://localhost:8080/api/logs
 - improved response contracts
 
 ### Phase 3
-- switch `policy.provider=opa`
-- point `policy.opa.url` to a live OPA endpoint
-- replace mocked OPA behavior with real HTTP-based policy evaluation
+- real HTTP-based OPA integration
 - send access context as OPA `input`
 - parse OPA decisions into backend responses
 - keep fallback handling when OPA is unavailable
