@@ -42,7 +42,7 @@ The implementation intentionally avoids early complexity such as databases, auth
 
 Current architecture:
 
-`Client -> Controller -> AccessControlService -> (LocalPolicyDecisionService | OpaPolicyDecisionService) -> AuditLogService -> Audit Log Repository`
+`Client -> Controller -> AccessControlService -> (LocalPolicyDecisionService | OpaPolicyDecisionService) -> AuditLogService -> H2 / JPA Repository`
 
 Planned evolution:
 
@@ -121,6 +121,11 @@ Response example:
 
 **GET** `/api/logs`
 
+Optional filters:
+
+- `GET /api/logs?agentId=agent-007`
+- `GET /api/logs?decision=ALLOW`
+
 Response example:
 
 ```json
@@ -128,12 +133,16 @@ Response example:
   "success": true,
   "data": [
     {
+      "id": 1,
+      "requestId": "req-010",
       "agentId": "agent-007",
       "role": "analyst",
       "resource": "financial_report",
       "action": "read",
       "decision": "ALLOW",
-      "timestamp": "2026-03-25T06:00:00Z"
+      "policyProvider": "opa",
+      "timestamp": "2026-03-25T06:00:00Z",
+      "decisionLatencyMs": 14
     }
   ],
   "message": "Audit logs fetched successfully"
@@ -310,12 +319,74 @@ curl -X POST http://localhost:8080/api/access/check \
   }'
 ```
 
+## Database-backed Audit Logging
+
+Audit logs now persist to an in-memory H2 database through Spring Data JPA.
+
+Configured defaults:
+
+```properties
+spring.datasource.url=jdbc:h2:mem:aiacdb
+spring.jpa.hibernate.ddl-auto=update
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+```
+
+The `AccessLog` entity stores:
+
+- `requestId`
+- `agentId`
+- `role`
+- `resource`
+- `action`
+- `decision`
+- `policyProvider`
+- `timestamp`
+- `decisionLatencyMs`
+
+## Example Query Results
+
+Query by agent:
+
+```bash
+curl "http://localhost:8080/api/logs?agentId=agent-007"
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "requestId": "req-010",
+      "agentId": "agent-007",
+      "role": "analyst",
+      "resource": "financial_report",
+      "action": "read",
+      "decision": "ALLOW",
+      "policyProvider": "opa",
+      "timestamp": "2026-03-25T06:00:00Z",
+      "decisionLatencyMs": 14
+    }
+  ],
+  "message": "Audit logs fetched successfully"
+}
+```
+
+Query by decision:
+
+```bash
+curl "http://localhost:8080/api/logs?decision=DENY"
+```
+
 ## Design Notes
 
 - controllers are thin and only handle HTTP concerns
 - decision logic stays in the service layer
 - audit logging is automatic on each access decision
-- repository is in-memory for MVP simplicity
+- logs are now persisted with H2 + JPA
 - response format is unified with `success`, `data`, and `message`
 - validation and exception handling are centralized
 
@@ -343,6 +414,7 @@ curl -X POST http://localhost:8080/api/access/check \
 - persist audit logs with H2 or PostgreSQL
 - add filter/query support
 - enrich logs with policy version, matched rule, latency, source IP, and timestamps
+- later switch from H2 to PostgreSQL with minimal repository/service changes
 
 ### Phase 5
 - add Go enforcement gateway as the execution and interception layer

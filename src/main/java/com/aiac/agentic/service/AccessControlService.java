@@ -31,26 +31,29 @@ public class AccessControlService {
 
     public AccessResponse checkAccess(AccessRequest request) {
         validateBusinessInputs(request);
-        PolicyDecision policyDecision = evaluateWithConfiguredProvider(request);
-        auditLogService.record(request, policyDecision.getDecision());
-        return new AccessResponse(request.getAgentId(), policyDecision.getDecision(), policyDecision.getReason());
-    }
+        long startTime = System.currentTimeMillis();
+        String providerUsed = "local";
+        PolicyDecision policyDecision;
 
-    private PolicyDecision evaluateWithConfiguredProvider(AccessRequest request) {
-        String provider = policyProperties.getProvider().trim().toLowerCase();
-
-        if ("opa".equals(provider)) {
+        String configuredProvider = policyProperties.getProvider().trim().toLowerCase();
+        if ("opa".equals(configuredProvider)) {
             log.info("Policy provider selected: opa");
             try {
-                return opaPolicyDecisionService.evaluate(request);
+                policyDecision = opaPolicyDecisionService.evaluate(request);
+                providerUsed = "opa";
             } catch (RuntimeException ex) {
                 log.warn("OPA policy evaluation failed. Falling back to local policy. Reason: {}", ex.getMessage());
-                return localPolicyDecisionService.evaluate(request);
+                policyDecision = localPolicyDecisionService.evaluate(request);
+                providerUsed = "local";
             }
+        } else {
+            log.info("Policy provider selected: local");
+            policyDecision = localPolicyDecisionService.evaluate(request);
         }
 
-        log.info("Policy provider selected: local");
-        return localPolicyDecisionService.evaluate(request);
+        long decisionLatencyMs = System.currentTimeMillis() - startTime;
+        auditLogService.record(request, policyDecision.getDecision(), providerUsed, decisionLatencyMs);
+        return new AccessResponse(request.getAgentId(), policyDecision.getDecision(), policyDecision.getReason());
     }
 
     private void validateBusinessInputs(AccessRequest request) {
