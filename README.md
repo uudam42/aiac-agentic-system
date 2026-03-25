@@ -1,10 +1,16 @@
 # AIAC-Agentic System
 
-AIAC-Agentic System is a policy-driven access control backend for AI agents. It is designed as a security engineering project rather than a generic CRUD application, with a focus on **Zero Trust**, **Policy-as-Code**, **AI Governance**, and **Auditability**.
+AIAC-Agentic System is a policy-as-code access control backend for AI agents, built with Spring Boot and Open Policy Agent (OPA).
+
+It enables dynamic, auditable authorization decisions using a pluggable policy engine with fallback mechanisms and persistent audit logging.
+
+The system follows a **Zero Trust** model and is designed to demonstrate **Policy-as-Code**, **AI Governance**, and **Auditability**.
 
 ## Project Goal
 
-The goal is to build a backend system that can evaluate an AI agent's access request **before** the agent performs a resource access, tool call, sensitive action, or task-chain step. The platform should be able to:
+The goal of this project is to build a backend system that evaluates an AI agent’s access request **before** the agent performs a resource access, tool call, sensitive action, or task-chain step.
+
+The platform is designed to:
 
 - identify the requesting agent
 - analyze request context
@@ -12,31 +18,46 @@ The goal is to build a backend system that can evaluate an AI agent's access req
 - allow or deny execution
 - record an audit trail for every decision
 
-This repository currently implements **a Spring Boot MVP with real OPA integration structure and local fallback**.
+This repository implements a Spring Boot backend with **pluggable policy providers**, **real OPA integration path**, **local fallback logic**, and **persistent audit logging**.
+
+## Key Features
+
+- Policy-as-Code architecture using Open Policy Agent (OPA) and Rego
+- Pluggable policy providers supporting both local and OPA-based evaluation
+- Automatic fallback to local policy when OPA is unavailable
+- Dynamic access decisions based on agent identity, role, resource, action, and context
+- Persistent audit logging with H2 and Spring Data JPA
+- Queryable audit logs with filtering support for `agentId` and `decision`
+- Clean layered backend architecture designed for extensibility
+- Zero Trust-oriented design for AI agent governance
 
 ## Current Stage
 
 ### Current Backend State
 
-The backend now delivers the Phase 1 minimal decision loop while also preparing the codebase for Phase 2 policy abstraction:
+The backend now delivers a working end-to-end access control flow with policy abstraction, OPA integration support, and database-backed audit persistence.
+
+The current implementation can:
 
 1. receive an access request
-2. validate core request fields and contextual inputs
-3. delegate the decision to a policy interface
+2. validate request fields and contextual inputs
+3. delegate the decision to a pluggable policy provider
 4. return `ALLOW` or `DENY`
-5. write an audit log entry
-6. expose the log history through an API
+5. persist an audit log entry
+6. expose log history and filtered audit queries through an API
 
-The implementation intentionally avoids early complexity such as databases, authentication frameworks, message queues, and frontend systems.
+The implementation is intentionally focused on backend security architecture and avoids unrelated complexity such as authentication frameworks, message queues, and frontend-heavy features at this stage.
 
 ## Tech Stack
 
 - Java 17
-- Spring Boot 3
-- Maven
-- RESTful API
-- JSON
-- In-memory repository for audit logging
+- Spring Boot
+- Maven Wrapper
+- H2 Database
+- Spring Data JPA
+- Open Policy Agent (OPA)
+- Rego (Policy Language)
+- REST API / JSON
 
 ## High-Level Architecture
 
@@ -44,13 +65,12 @@ Current architecture:
 
 `Client -> Controller -> AccessControlService -> (LocalPolicyDecisionService | OpaPolicyDecisionService) -> AuditLogService -> H2 / JPA Repository`
 
-Planned evolution:
+## Project Status
 
-- **Phase 2:** pluggable policy decision service + richer request context
-- **Phase 3:** OPA/Rego integration
-- **Phase 4:** database-backed audit persistence
-- **Phase 5:** Go enforcement gateway
-- **Phase 6:** React dashboard
+- **Phase 1:** Backend MVP ✅
+- **Phase 2:** Policy abstraction ✅
+- **Phase 3:** OPA integration ✅
+- **Phase 4:** Audit persistence (H2 + JPA) ✅
 
 ## Package Structure
 
