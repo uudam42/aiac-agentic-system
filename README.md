@@ -190,24 +190,30 @@ This keeps the system runnable even when no OPA server is present, while allowin
 - Java 17+
 - Maven 3.9+
 
-### Start locally
+### Start locally with Maven Wrapper
 
 ```bash
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 The service starts on port **8080**.
 
+If port 8080 is already in use, run on another port:
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=18080
+```
+
 ### Build
 
 ```bash
-mvn clean package
+./mvnw clean package
 ```
 
 ### Test
 
 ```bash
-mvn test
+./mvnw test
 ```
 
 ## curl Examples
@@ -270,7 +276,19 @@ Start OPA locally from the project root:
 opa run --server --addr :8181 policies/aiac.rego
 ```
 
-Then switch the backend to OPA mode in `src/main/resources/application.properties`:
+Then run the backend in OPA mode:
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments='--policy.provider=opa'
+```
+
+Or if 8080 is occupied:
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments='--server.port=18080 --policy.provider=opa'
+```
+
+You can also keep `src/main/resources/application.properties` set to:
 
 ```properties
 policy.provider=opa
@@ -424,6 +442,19 @@ curl "http://localhost:8080/api/logs?decision=DENY"
 - add React admin console
 - display access events, ALLOW/DENY distributions, and decision details
 - support submitting test access requests visually
+
+## Local Verification Summary
+
+Verified with Maven Wrapper:
+
+- `./mvnw test` passes
+- application boots successfully with `./mvnw spring-boot:run`
+- H2/JPA schema initializes automatically
+- `/api/health` responds correctly
+- `/api/access/check` returns both `ALLOW` and `DENY`
+- `/api/logs` returns persisted audit records
+- `/api/logs?agentId=...` and `/api/logs?decision=...` work
+- OPA mode configuration works and falls back to local policy when OPA is unreachable
 
 ## Why This Project Matters
 

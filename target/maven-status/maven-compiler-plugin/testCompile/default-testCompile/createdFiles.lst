@@ -1,0 +1,6 @@
+com/aiac/agentic/controller/HealthControllerTest.class
+com/aiac/agentic/controller/AccessControllerTest.class
+com/aiac/agentic/service/AccessControlServiceTest$InMemoryAuditLogProbe.class
+com/aiac/agentic/service/OpaPolicyDecisionServiceTest.class
+com/aiac/agentic/service/LocalPolicyDecisionServiceTest.class
+com/aiac/agentic/service/AccessControlServiceTest.class
